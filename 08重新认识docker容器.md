@@ -1,8 +1,8 @@
-## 重新认识docker容器
+# 重新认识docker容器
 
-#### Flask APP
+## build一个镜像
 
-##### 创建Flask相关文件
+### 创建Flask相关文件
 
 * app.py
 
@@ -29,7 +29,7 @@ if __name__ == "__main__":
 Flask
 ```
 
-##### 创建Dockerfile
+### 创建Dockerfile
 
 ```dockerfile
 FROM python:2.7-slim
@@ -65,17 +65,31 @@ $ tree .
 1 directory, 3 files
 ```
 
-##### build docker镜像
+### build docker镜像
 
 ```bash
 $ docker build -t flaskapp .
 ```
 
+当build镜像时：
 
+1. docker每执行一行，会以上一层为基础拉起一个容器
+2. 然后在这个容器里执行对应的命令
+3. 完成后，将这一层提交成一个image
 
+### 查看镜像的build history
 
+```bash
+$ docker history 06e1a19665ce
+IMAGE               CREATED             CREATED BY                                      SIZE                COMMENT
+06e1a19665ce        5 weeks ago         /bin/sh -c apk update && apk add nginx          2.98MB
+f70734b6a266        2 months ago        /bin/sh -c #(nop)  CMD ["/bin/sh"]              0B
+<missing>           2 months ago        /bin/sh -c #(nop) ADD file:b91adb67b670d3a6f…   5.61MB
+```
 
-#### 进入一个ns
+## docker exec的本质
+
+### 进入一个namespace
 
 * `set_ns.c`
 
@@ -105,7 +119,7 @@ int main(int argc, char *argv[]) {
 $ gcc -o set_ns set_ns.c
 ```
 
-##### 启动一个container
+### 启动一个container
 
 ```bash
 $ docker run -it -d --rm ubuntu
@@ -114,7 +128,7 @@ $ docker inspect 59ed1b0423a | grep \"Pid\"
             "Pid": 14123,
 ```
 
-##### 查看进程相关ns
+### 查看进程相关ns
 
 ```bash
 $ ls /proc/14123/ns/ -l
@@ -129,7 +143,7 @@ lrwxrwxrwx 1 root root 0 Jun 16 07:34 user -> 'user:[4026531837]'
 lrwxrwxrwx 1 root root 0 Jun 16 07:34 uts -> 'uts:[4026532570]'
 ```
 
-##### 以net的namespace运行ifconfig
+### 以net的namespace运行ifconfig
 
 ```bash
 $ ./set_ns /proc/14123/ns/net /bin/bash
@@ -151,7 +165,7 @@ lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536
         TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0
 ```
 
-##### 分别用set_ns和docker exec查看
+### 分别用set_ns和docker exec查看
 
 ```bash
 $ ps -aux | grep /bin/bash
@@ -206,9 +220,9 @@ lrwxrwxrwx 1 root root 0 Jun 16 07:52 /proc/14722/ns/net -> 'net:[4026532574]'
 >
 > 可以看到，使用ip命令进入namespace和set_ns进入namespace后的的`/bin/bash`的ns
 
-#### Volume
+## Volume的本质
 
-##### 启动一个挂载volume的容器
+### 启动一个挂载volume的容器
 
 ```bash
 $ docker run --rm -it -d -v /test ubuntu
@@ -242,7 +256,7 @@ $ docker inspect 65f6fa
 
 可以看到，在不指定本地目录的时候，docker会自动创建一个volume，且在`/var/lib/docker/volumes`下创建一个目录
 
-##### 启动一个挂载本地目录的容器
+### 启动一个挂载本地目录的容器
 
 ```bash
 $ docker run --rm -it -d -v /test:/test ubuntu
@@ -269,7 +283,7 @@ $ docker inspect ddbbb8
 ]
 ```
 
-#### Volume挂载的真相
+### Volume挂载的真相
 
 **这一段话有必要引述**
 
@@ -285,7 +299,7 @@ $ docker inspect ddbbb8
 * 将需要挂载的目录挂载到容器的目录上
 * `chroot`切换到对应的文件系统
 
-##### 示例
+#### 示例
 
 ```bash
 $ docker ps
@@ -341,7 +355,7 @@ $ ls /var/lib/docker/volumes/ca1683d1e9cc06657c7857d8b8c7196176a59e409d74fc72ff3
 test.txt
 ```
 
-#### 绑定挂载机制
+### 绑定挂载机制
 
 可以将一个目录绑定挂载到另外一个目录
 
@@ -391,9 +405,14 @@ test.txt
 
 如果/test目录已经mount了呢？
 
-##### 会不会将本地挂载的目录提交到image里面呢？
+### 会不会将本地挂载的目录提交到image里面呢？
 
 > **不会**
 >
 > 容器的镜像操作，比如 docker commit，都是发生在宿主机空间的。而由于 Mount Namespace 的隔离作用，宿主机并不知道这个绑定挂载的存在。所以，在宿主机看来，容器中可读写层的 /test 目录（/var/lib/docker/aufs/mnt/[可读写层 ID]/test），始终是空的。
 
+## 小结
+
+本节主要学习了DockerFile编写、镜像的build方法。以及docker exec和volume的底层实现原理。
+
+通过所有前面几节的实验，不难发现，docker就是通过linux namespace进行隔离，cgroup对资源进行限制，rootfs作为容器的文件系统。无论是docker镜像还是docker容器，以及网络和volume，都是在linux的这些基础功能的基础上实现起来的。

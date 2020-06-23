@@ -1,6 +1,6 @@
-## 为什么需要Pod
+# 为什么需要Pod
 
-#### 共享net的container
+## 共享net的container
 
 ##### 先来起两个共享net和volume的容器
 
@@ -69,19 +69,19 @@ lrwxrwxrwx 1 root root 0 Jun 12 06:45 user -> 'user:[4026531837]'
 lrwxrwxrwx 1 root root 0 Jun 12 06:42 uts -> 'uts:[4026532629]'
 ```
 
-> 可以看到，cgroup、net和user是相同的
->
+可以看到，cgroup、net和user是相同的
+
 > 实际上，在不指定共享net的container的时候，cgroup和user也都是相同的
 >
 > ```bash
-> $ docker run -it -d ubuntu
+>$ docker run -it -d ubuntu
 > 25b637a2facf0ba713403c14f300644ee21cd107b45fb57d47f7cb4be0fcc3ad
 > $ docker inspect 25b637a2f | grep Pid
->             "Pid": 10895,
->             "PidMode": "",
+>          "Pid": 10895,
+>          "PidMode": "",
 >             "PidsLimit": null,
-> $ ls /proc/10895/ns/ -l
-> total 0
+>    $ ls /proc/10895/ns/ -l
+>    total 0
 > lrwxrwxrwx 1 root root 0 Jun 15 03:10 cgroup -> 'cgroup:[4026531835]'
 > lrwxrwxrwx 1 root root 0 Jun 15 03:10 ipc -> 'ipc:[4026532706]'
 > lrwxrwxrwx 1 root root 0 Jun 15 03:10 mnt -> 'mnt:[4026532704]'
@@ -131,9 +131,9 @@ lo        Link encap:Local Loopback
 
 ```
 
-> 可以看到，两个container的eth0的IP，MAC等都相同
+两个container的eth0的IP，MAC等都相同
 
-#### Pod
+## Pod
 
 ##### 先起一个pod看看
 
@@ -479,7 +479,7 @@ $ docker inspect 09b081c04b1b
 > * `k8s_POD_two-containers-volume_default`这个container的`NetworkSettings`字段声明有网络相关内容，但Mounts为空
 > * `k8s_c1`和`k8s_c2`的container的`NetworkSettings`为空，但Mounts中则挂载了`/data`目录
 
-#### Init container
+## Init container
 
 ```yaml
 apiVersion: v1
@@ -530,7 +530,9 @@ e75657cb2079        registry.aliyuncs.com/google_containers/pause:3.2   "/pause"
 
 > 会发现这里只有一个`k8s_app-container`和`k8s_POD`，而没有`init-container`
 >
-> 是因为名为data-container`的container的command仅仅是一个`echo`语句，只运行一次
+> 是因为
+>
+> > 在 Pod 中，所有 Init Container 定义的容器，都会比 spec.containers 定义的用户容器先启动。并且，Init Container 容器会按顺序逐一启动，而直到它们都启动并且退出了，用户容器才会启动。
 >
 > 但k8s并没有在这个container结束运行后重启它
 
@@ -549,3 +551,10 @@ $ kubectl exec init-container-test -- ls /data
 test.txt
 ```
 
+> 通过容器可以看到test.txt已经存在在`init-container-test`的`/data`目录下了
+
+### 总结引用
+
+* 一个运行在虚拟机里的应用，哪怕再简单，也是被管理在 systemd 或者 supervisord 之下的一组进程，而不是一个进程。
+* 对于容器来说，一个容器永远只能管理一个进程
+* Pod，实际上是在扮演传统基础设施里“虚拟机”的角色；而容器，则是这个虚拟机里运行的用户程序。
